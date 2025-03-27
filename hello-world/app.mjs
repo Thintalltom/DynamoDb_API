@@ -1,5 +1,5 @@
-import { DynamoDBClient, CreateTableCommand, DescribeTableCommand, PutItemCommand } from "@aws-sdk/client-dynamodb";
-
+import { DynamoDBClient, CreateTableCommand, DescribeTableCommand, PutItemCommand, GetItemCommand, ScanCommand } from "@aws-sdk/client-dynamodb";
+import { APIGatewayEvent, Context } from "aws-lambda";
 // DynamoDB Configuration
 const REGION = "us-east-1";
 const TABLE_NAME = "crud";
@@ -65,7 +65,41 @@ const addData = async (data) => {
   }
 };
 
-// Lambda Handler Function
+const getDataByName = async (name) => {
+  const params = {
+    TableName: TABLE_NAME,
+    IndexName: "NameIndex", // created a Global Secondary Index
+    KeyConditionExpression: "#name = :nameValue",
+    ExpressionAttributeNames: {
+      "#name": "name",
+    },
+    ExpressionAttributeValues: {
+      ":nameValue": { S: name },
+    },
+  };
+
+  try {
+    const data = await dbClient.send(new QueryCommand(params));
+    return { success: true, data: data.Items };
+  } catch (err) {
+    return { success: false, message: "Failed to get data", error: err };
+  }
+};
+
+//fetch all user
+const fetchallUser = async () => {
+  const params = {
+    TableName: TABLE_NAME,
+  };
+
+  try {
+    const data = await dbClient.send(new ScanCommand(params));
+    return { success: true, data: data.Items };
+  } catch (err) {
+    return { success: false, message: "Failed to fetch data", error: err };
+  }
+};
+
 export const lambdaHandler = async (event, context) => {
   try {
     const body = event.body ? JSON.parse(event.body) : null;
@@ -87,6 +121,22 @@ export const lambdaHandler = async (event, context) => {
       return {
         statusCode: addDataResponse.success ? 200 : 500,
         body: JSON.stringify(addDataResponse),
+      };
+    }
+
+  
+    if (body.action === "getData") {
+      if (!body.name) {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ success: false, message: "Missing name parameter" }),
+        };
+      }
+
+      const getDataResponse = await getDataByName(body.name);
+      return {
+        statusCode: getDataResponse.success ? 200 : 500,
+        body: JSON.stringify(getDataResponse),
       };
     }
 
