@@ -7,11 +7,10 @@ import {
   DeleteItemCommand,
   QueryCommand,
 } from "@aws-sdk/client-dynamodb";
-import { v4 as uuidv4 } from 'uuid';
 // DynamoDB Configuration
 const REGION = "us-east-1";
 const TABLE_NAME = "crud";
-
+//added the uuid 
 const dbClient = new DynamoDBClient({ region: REGION });
 
 //delete based off id
@@ -93,7 +92,6 @@ const createTable = async () => {
 const addData = async (data) => {
   const requestJSON = JSON.parse(data);
   if (
-    !requestJSON?.id ||
     !requestJSON?.username ||
     !requestJSON?.firstname ||
     !requestJSON?.lastname ||
@@ -101,14 +99,14 @@ const addData = async (data) => {
   ) {
     return {
       success: false,
-      message: "Missing required fields (id, firstname, lastname, email)",
+      message: "Missing required fields (id, username, firstname, lastname, email)",
     };
   }
 
   const params = {
     TableName: TABLE_NAME,
     Item: {
-      id: {  S: uuidv4() },
+      id: {  S: Date.now().toString() },
       username: { S: requestJSON.username },
       firstname: { S: requestJSON.firstname },
       lastname: { S: requestJSON.lastname },
