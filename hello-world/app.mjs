@@ -7,6 +7,7 @@ import {
   DeleteItemCommand,
   QueryCommand,
 } from "@aws-sdk/client-dynamodb";
+import { v4 as uuidv4 } from 'uuid';
 // DynamoDB Configuration
 const REGION = "us-east-1";
 const TABLE_NAME = "crud";
@@ -93,6 +94,7 @@ const addData = async (data) => {
   const requestJSON = JSON.parse(data);
   if (
     !requestJSON?.id ||
+    !requestJSON?.username ||
     !requestJSON?.firstname ||
     !requestJSON?.lastname ||
     !requestJSON?.email
@@ -106,7 +108,8 @@ const addData = async (data) => {
   const params = {
     TableName: TABLE_NAME,
     Item: {
-      id: { S: requestJSON.id },
+      id: {  S: uuidv4() },
+      username: { S: requestJSON.username },
       firstname: { S: requestJSON.firstname },
       lastname: { S: requestJSON.lastname },
       email: { S: requestJSON.email },
@@ -136,6 +139,9 @@ const getDataByName = async (firstname) => {
 
   try {
     const data = await dbClient.send(new QueryCommand(params));
+    if(!data.Items || data.Items.length === 0) {
+      return { success: false, message: "No user found with that name" };
+    }
     return { success: true, data: data.Items };
   } catch (err) {
     return {
@@ -161,24 +167,25 @@ const fetchallUser = async () => {
 };
 
 export const lambdaHandler = async (event, context) => {
+  console.log("Received event:", JSON.stringify(event, null, 2));
   let body;
   let statusCode = 200;
   const headers = { "Content-Type": "application/json" };
   try {
+   
     const { routeKey, pathParameters, body: requestBody } = event;
-    if (routeKey === "GET/users") {
+    if (routeKey === "GET /users") {
       body = await fetchallUser();
-    } else if (routeKey === "GET/users/{name}") {
+    } else if (routeKey === "GET /users/{name}") {
       body = await getDataByName(pathParameters.name);
-    } else if (routeKey === "POST/users") {
+    } else if (routeKey === "POST /users") {
       body = await addData(requestBody);
-    } else if (routeKey === "DELETE/users/{id}") {
+    } else if (routeKey === "DELETE /users/{id}") {
       body = await deleteItem(pathParameters.id);
-    } else if (routeKey === "POST/tables/create") {
-      // 🚀 NEW ROUTE FOR TABLE CREATION
+    } else if (routeKey === "POST /tables/create") {
       body = await createTable();
     } else {
-      throw new Error(`Unsupported route: "${routeKey}"`);
+      throw new Error(`This route does not exist: "${routeKey}"`);
     }
   } catch (error) {
     statusCode = 400;
